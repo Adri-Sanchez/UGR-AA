@@ -4,7 +4,7 @@
 
 *Read in another language: [Spanish](README.md)*
 
-Projects for the subject *Machine Learning* using the R programming language.  
+Projects for the *Machine Learning* subject using the R programming language.  
 
 **Práctica 1.-** Optimal Iterative Search & Linear Regression  
 **Práctica 2.-** Compexity, Noise and Lineal Models  
