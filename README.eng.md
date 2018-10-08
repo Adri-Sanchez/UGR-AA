@@ -6,9 +6,9 @@
 
 Projects for the *Machine Learning* subject using the R programming language.  
 
-**Práctica 1.-** Optimal Iterative Search & Linear Regression  
-**Práctica 2.-** Compexity, Noise and Lineal Models  
-**Práctica 3.-** Model Adjustment
+**Project 1.-** Optimal Iterative Search & Linear Regression  
+**Project 2.-** Compexity, Noise and Lineal Models  
+**Project 3.-** Model Adjustment
 
 **Final Project** Analysis of Oxford Parkinson's Disease Telemonitoring Dataset
 
