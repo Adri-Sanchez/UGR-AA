@@ -10,6 +10,8 @@ Prácticas de la asignatura *Aprendizaje Automático* usando el lenguaje de prog
 **Práctica 2.-** Compeljidad, Ruido y Modelos Lineales  
 **Práctica 3.-** Ajuste de Modelos  
 
+**Proyecto Final** Análisis de la base de datos *Parkinson Telemonitoring* (University of Oxford)
+
 ## Construido con
 
 * [R](https://www.r-project.org/) - The R Project for Statistical Computing  
