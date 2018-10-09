@@ -1,0 +1,722 @@
+---
+title: "Práctica 1"
+author: "Autores: Adrián Sánchez Cerrillo y Miguel Ángel López Robles"
+date: "23 de marzo de 2018"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## 1. Ejercicio sobre la búsqueda iterativa de óptimos
+
+### 1.1 Implementar el algoritmo de gradiente descendente
+El algoritmo de Gradiente Descendente es un método de optimización de funciones, lo hemos implementado de la siguiente forma:  
+__* Parámetros__  
+- Hemos establecido dos parámetros _f_ y _df_ para pasar como parámetro la función que utilizaremos en cada caso.  
+- Un vector de pesos inicial wini que corresponderá al punto inicial en el que comenzamos a aplicar Gradiente Descendente  
+- Número de iteraciones del algoritmo, _nitr_, por defecto establecido a 100000 iteraciones.
+- Una tasa de aprendizaje o _Learning Rate_ representada como el parámetro lr, por defecto inicializado a 0.1. 
+- El parámetro _umbral_ es un parámetro que indica a la función si debe parar cuando encuentre un valor por debajo del mismo en la función  
+- El parámetro _umbraldif_ nos sirve para detectar cuando el algortimo se encuentra en una llanura de la función, por lo que pararemos las iteraciones y finalizaremos el algoritmo.
+
+__* Algoritmo__
+- Con las iteraciones, realizamos las comprobaciones oportunas
+- Cuando el algoritmo finaliza, realizamos un control que imprime la razón de su finalización, aportándonos información relativa.
+
+__* Salida__
+- El algoritmo propocionará una lista con el vector de pesos _wini_, el número de _iteraciones_ que ha realizado y por último los _valores_ que ha tomado la función con las iteraciones del algoritmo
+```{r GD}
+GD <- function(f, df, wini = c(0,0), nitr = 100000, lr = 0.1, umbral = 1*10^(-10), umbraldif = 1*10^(-10)) {
+  iteraciones <- 0
+  min <- .Machine$integer.max
+  diferencia <- .Machine$integer.max
+  dif_significativa <- TRUE
+  
+  valores <- f(wini[1], wini[2])
+  
+  while(iteraciones < nitr & min > umbral & dif_significativa ){
+    anterior <- f(wini[1], wini[2])
+    
+    wini <- wini - lr * df(wini[1],wini[2])
+    
+    min <- f(wini[1],wini[2]) 
+    valores <- append(valores, min)
+    diferencia <- abs(anterior-min)
+    
+    dif_significativa <- diferencia > umbraldif
+    
+    iteraciones = iteraciones + 1
+  }
+  
+  if (iteraciones >= nitr){
+    print ("GD ha llegado al limite de iteraciones")
+  }
+  else if (min < umbral){
+    print ("Se ha alcanzado un valor en la función por debajo del umbral")
+  }
+  else{
+    print ("GD ha parado por encontrarse en una llanura de la función")
+  }
+  
+  wini <- list(wini, iteraciones, valores)
+  names(wini) <- c("w", "iteraciones", "valores")
+  
+  wini
+}
+```    
+
+### 1.2 Considerar la función  
+
+$E(u,v)=(u^3e^{v-2}-4v^3e^{-u})^2$   
+
+### Usar gradiente descendente para encontrar un mínimo de esta función, comenzando desde el punto (u,v) = (1,1) y usando la tasa de aprendizaje mu = 0.05
+#### a) Calcular analíticamente y mostrar la expresión del gradiente de la función E(u,v)
+
+$\nabla E(u,v) = (\frac{\partial E(u,v)}{\partial u}, \frac{\partial E(u,v)}{\partial v}) = (2\left(\mathrm{e}^{v-2}u^3-4v^3\mathrm{e}^{-u}\right)\left(4v^3\mathrm{e}^{-u}+3\mathrm{e}^{v-2}u^2\right), 2\left(u^3\mathrm{e}^{v-2}-12\mathrm{e}^{-u}v^2\right)\left(u^3\mathrm{e}^{v-2}-4\mathrm{e}^{-u}v^3\right))$    
+En R, definimos la función y sus derivadas como sigue:  
+```{r}
+f1.2 <- function(u,v){
+  fxy <- (u^3 * (exp(1)^(v-2)) - 4*v^3 * (exp(1)^-u) )^2
+
+  fxy
+}
+
+d1.2 <- function(u,v){
+  du <- 2*(u^3 * (exp(1)^(v-2))-4*(exp(1)^(-u))*v^3) * (3*u^2*(exp(1)^(v-2))+4 * (exp(1)^(-u)) * v^3)
+  dv <- 2*(u^3 * (exp(1)^(v-2))-12*(exp(1)^(-u))*v^2)* (u^3 * (exp(1)^(v-2))-4 * (exp(1)^(-u)) * v^3)
+  
+  duv <- c(du,dv)
+  
+  duv
+}
+```
+#### b) ¿Cuántas iteraciones tarda el algoritmo en obtener por primera vez un valor de E(u, v) inferior a 10^−14? (Usar flotantes de 64 bits)  
+Establecemos el nº de iteraciones a un valor alto, nuestro umbral de parada a 1*10^(-13) suficiente para encontrar un valor menor al indicado.
+```{r}
+w <- GD(f1.2, d1.2, wini = c(1,1), lr = 0.05, nitr = 1*10^30, umbral = 1*10^(-13), umbraldif = 1*10^(-20) )
+```
+
+Nº de Iteraciones en encontrar un valor inferior a 10^-14: `r w$iteraciones`     
+
+#### c) ¿En qué coordenadas (u, v) se alcanzó por primera vez un valor igual o menor a 10^(−14) en el apartado anterior.
+Coordenadas [x,y] dónde se encontró el valor [`r w$w[1]`] [`r w$w[2]`]   
+
+### 1.3 Considerar la función
+$f(x,y) = (x-2)^2+2(y+2)^2+2sin(2\pi x)sin(2\pi y)$  
+
+En R, definimos la función y sus derivadas como sigue:  
+```{r}
+f1.3 <- function(x,y){
+  fxy <- (x-2)^2 + 2*(y+2)^2 + 2*sin(2*pi*x) * sin(2*pi*y)
+  
+  fxy
+}
+
+d1.3 <- function(x,y){
+  dx <- 4*pi*cos(2*pi*x)*sin(2*pi*y)+2*(x-2) 
+  dy <- 4*pi*sin(2*pi*x)*cos(2*pi*y)+4*(y+2)
+  
+  dxy <- c(dx,dy)
+  
+  dxy
+}
+```
+
+#### a) Usar gradiente descendente para minimizar esta función. Usar como punto inicial (x~1~ = 1, y~0~ = 1), tasa de aprendizaje η = 0,01 y un máximo de 50 iteraciones. Generar un gráfico de cómo desciende el valor de la función con las iteraciones. Repetir el experimento pero usando η = 0,1, comentar las diferencias y su dependencia de η
+```{r}
+  w1 <- GD(f1.3, d1.3, wini = c(1,1), lr = 0.01, nitr = 50, umbraldif = -1)
+```
+
+```{r, echo = FALSE}
+  plot(w1$valores, type = "o", xlab = "Iteraciones", ylab = "f(x,y)")
+```
+
+Se puede observar como el GD al tener un learning rate de 0.01, converge en un mínimo.  
+Ahora realizamos el mismo experimento pero con learning rate de 0.1.
+  
+```{r}
+  w2 <- GD(f1.3, d1.3, wini = c(1,1), lr = 0.1, nitr = 50, umbral = -5, umbraldif = -1)
+```
+  
+```{r, echo = FALSE}
+  plot(w2$valores, type = "o", xlab = "Iteraciones", ylab = "f(x,y)")
+```
+  
+__Comparación de ambas tasas de aprendizaje__
+```{r, echo = FALSE}
+  plot(w1$valores, type = "o", col = "blue", ylim=c(-2,20), ann = FALSE)
+  lines(w2$valores, type="o", pch=22, lty=2, col="red")
+  title(ylab = "f(x,y)")
+  title(xlab = "Iteraciones")
+  lines(w2$valores, type="o", pch=22, lty=2, col="red")
+  legend(40, 20, c("Lr 0.1", "Lr 0.01"), cex=0.8, col=c("blue","red"), pch=21:22, lty=1:2)
+  
+
+  
+  rm(w)
+  rm(w1)
+  rm(w2)
+```  
+Cómo podemos observar, al incrementar la tasa de aprendizaje somos capaces de saltar fuera de uno de los mínimos locales de la función, el único inconveniente es que al no haber establecido condición de parada excepto por iteraciones, el valor devuelto no es el mínimo más pequeño encontrado.  
+
+#### b) Obtener el valor mínimo y los valores de las variables (x,y) en donde se alcanzan cuando el punto de inicio se fija: : (2,1, −2,1), (3, −3),(1,5, 1,5),(1, −1). Generar una tabla con los valores obtenidos  
+Establecemos una matriz de puntos para realizar todas las pruebas de forma más cómoda y no repetir código.  
+```{r}
+ej1.3b <- matrix(c(2.1, -2.1, 3, -3, 1.5, 1.5, 1, -1), byrow = TRUE, ncol = 2)
+vec <- c()
+```  
+
+En el bucle siguiente realizamos el procedimiento:  
+
+```{r}
+for(i in 1:nrow(ej1.3b)){
+  cat ("Punto de inicio: (",ej1.3b[i, 1],", ",ej1.3b[i, 2],")", "\n")
+  w <- GD(f1.3, d1.3, wini = c(ej1.3b[i, 1],ej1.3b[i, 2]), lr = 0.05, nitr = 100000, umbral = -1.5, umbraldif = 1*10^(-4) )
+  
+  cat ("Mínimo encontrado: ", f1.3(w$w[1], w$w[2]), "\n")
+  cat ("Coordenadas [x,y] dónde se encontró el valor [",w$w[1],",",w$w[2],"]", "\n")
+  cat ("Iteraciones para encontrar el mínimo: ", w$iteraciones, "\n")
+  
+  vec <- c(vec, w$w[1], w$w[2], f1.3(w$w[1], w$w[2]))
+}
+```
+
+__Resultados obtenidos:__
+
+```{r echo = FALSE}
+tabla <- matrix(vec, byrow = TRUE, ncol = 3)
+colnames(tabla) <- c("X", "Y", "Minimo")
+rownames(tabla) <- c("[2.1, -2.1]", "    [3, -3]", " [1.5, 1.5]", "    [1, -1]")
+
+print(tabla)
+```
+##1.4Conclusiones
+En conclusion podemos decir que existen varios factores para encontrar el minimo global de una funcion arbitraria. En primer lugar uno de los factores mas relevantes es la forma de la funcion en la que queremos buscar el minimo. En este ejercicio hemos visto como la primera función era mas monotona y que se podia converger a un minimo mas rapido. En el caso de la segunda funcion parecia una huevera y era muy dificil que el GD alcanzara el minimo, realizaba muchos saltos a zonas distintas si llegar al minimo. Otra de las dificultadades es como elegir correctamente los parametros del algoritmo, ya que una tasa muy alta nos puede hacer dar saltos muy grandes y llevarnos a zonas muy malas. Por otro lado si es muy baja, necesitaremos muchas iteraciones para converger al minimo. Por ultimo, otra dificultad importante a sido la eleccion de la parada. Aunque hemos puesto tres condiciones de parada, iteraciones, umbral y diferenciaumbral, es muy dificil ajustar estos parametros. Por ejemplo si no tenemos buena diferencia entre puntos podemos gastar muchas iteraciones en una llanura como podia pasar en la primera funcion. El numero de iteraciones es muy importante por que habia casos que dependia el resultado de la iteracion en la que se paraba y quizas si hubiera parado en una iteracion antes el resultado seria bastante mas bueno. Por ultimo el umbral ya que tenemos que ajustarlo bien para que busque un minimo pero que no sea algo facil de encontar y por tanto se quede en un minimo global, pero tampoco imposible de alcanzar si no para por iteraciones y el resultado no será el mejor.
+
+
+##Ejercicio sobre regresiós lineal
+
+###2.1Lectura del fichero
+En este apartado lo que tenemos que hacer leer desde los archivos Zip.train y Zip.test los datos  
+para poder entrenar y los datos para comprobar si nuestro modelos es correcto fuera de la muestra.
+Para ello vamos a usar las siguientes ordenes para la lectura de los datos train.
+
+```{r lecturaTr,warning=FALSE}
+#setwd("~/Documentos/aa practias")
+#setwd("./datos")  #directorio de trabajo
+
+
+#leer el zip.train---------------------------------------------------------------
+digit.train = read.table("datos/zip.train",quote="\"", comment.char="", stringsAsFactors=FALSE)
+
+
+digitos15.train = digit.train[digit.train$V1==1 | digit.train$V1==5,]
+digitos = digitos15.train[,1]    # vector de etiquetas del train
+ndigitosTr = nrow(digitos15.train)  # numero de muestras del train
+
+# se retira la clase y se monta una matriz 3D: 599*16*16
+grises = array(unlist(subset(digitos15.train,select=-V1)),c(ndigitosTr,16,16))
+
+
+par(mfrow=c(2,2)) 
+for(i in 1:4){
+  imagen = grises[i,,16:1] # se rota para verlo bien
+  image(z=imagen)
+}
+
+digitos[1:4] # etiquetas correspondientes a las 4 imágenes
+par(mfrow = c(1,1))
+print("Estas son un ejemplo de los digitos leidos y de los cuales solo hemos seleccionados los 1 y los 5")
+
+rm(digit.train) 
+rm(digitos15.train)
+
+```
+
+
+###2.2 Extración de características
+Ahora vamos a sacar de estos datos dos caracteristicas para intentar encontrar un modelo que con
+estas características sea capaz de clasificar otros digitos
+
+Para ello extraemos dos caracteristicas. La primera es la intesidad que calcularemos como la media de los valores del color de cada digito aplicando la funcion mean
+
+```{r intensidad}
+print("Extraemos de cada imagen las caracteristicas de intensidad y simetria")
+intensidad = apply (grises,1,mean)
+```
+
+Ahora vamos a extraer la caracteristica de la simetria la cual vamos a ser la recta entre las 
+dos mitades de la matriz de datos del digito. Despues usaremos el valor absoluta para tener la 
+diferencia y usaremos ese valor en negativo por que cuanto mas distinto sea ese valor nos dara mayor y realmente queremos plasmar que si es simetrico sea 0.
+
+
+```{r simetria}
+
+fsimetria <- function(A){
+  A = abs(A-A[,ncol(A):1])
+  -sum(A)
+}
+simetria = apply (grises,1,fsimetria)
+```
+
+
+Ahora unimos estas dos caracteristicas y construimos nuestra matriz de datos
+
+
+```{r union}
+
+etiquetasTr =digitos
+etiquetasTr[etiquetasTr == 5 ] = -1
+
+datosTr = as.matrix(cbind(intensidad,simetria)) 
+rm(grises)
+
+print("aqui tenemos la relacion de estas dos caracteristicas")
+plot(datosTr,xlab=" intensidad",ylab="simetria", main="datos de train") 
+
+print("vamos a pintar ahora cada punto con el color de su clasificacion")
+plot(datosTr,xlab=" intensidad",ylab="simetria", main="datos de train", col = etiquetasTr+2)
+
+```
+
+
+Aplicamos el mismo procedimiento para los datos de test que necesitamos para poner a prueba nuestro modelo
+
+```{r lecturaTst}
+#leer el zip.test---------------------------------------------------------------
+#leer el zip.test---------------------------------------------------------------
+digit.test = read.table("datos/zip.test",quote="\"", comment.char="", stringsAsFactors=FALSE)
+
+
+
+
+
+digitos15.test = digit.test[digit.test$V1==1 | digit.test$V1==5,]
+digitos = digitos15.test[,1]    # vector de etiquetas del test
+ndigitosTst = nrow(digitos15.test)  # numero de muestras del test
+
+# se retira la clase y se monta una matriz 3D: 599*16*16
+grises = array(unlist(subset(digitos15.test,select=-V1)),c(ndigitosTst,16,16))
+grises = as.numeric(grises)
+dim(grises) = c(49,16,16)
+
+rm(digit.test) 
+rm(digitos15.test)
+
+par(mfrow=c(2,2)) 
+for(i in 1:4){
+ imagen = grises[i,,16:1] # se rota para verlo bien
+  image(z=imagen)
+}
+
+par(mfrow = c(1,1))
+print("Como podemos ver tenermos el mismo tipo de datos que en train los 1 y los 5")
+
+intensidad = apply (grises,1,mean)
+
+simetria = apply (grises,1,fsimetria)
+
+etiquetasTst =digitos
+etiquetasTst[etiquetasTst== 5 ] = -1
+
+datosTst = as.matrix(cbind(intensidad,simetria)) 
+rm(grises)
+
+print("vamos a pintar ahora cada punto con el color de su clasificacion")
+plot(datosTst,xlab=" intensidad",ylab="simetria", main="datos de test", col = etiquetasTst+2)
+
+```
+
+###2.3 Modelo de regresión lineal
+
+Ahora es cuando tenemos los datos y vamos a buscar el modelo que se ajusta.
+En primer lugar vamos a ver una funcion que nos va a pasar el vector de pesos w a parametros 
+para la función abline que usaremos para poder pintar las rectas donde clasifica nuestro modelo.
+
+
+```{r pasoRecta}
+pasoARecta= function(w){
+      if(length(w)!= 3)
+        stop("Solo tiene sentido con 3 pesos")
+      a = -w[1]/w[2]
+      b = -w[3]/w[2]
+      c(a,b)
+}
+```
+
+
+Ahora vamos en primer lugar a definir la función que usa el algoritmo de la pseudo-inversa y que nos dará un resultado aproximado a la solución
+print("En primer lugar vamos a usar el algoritmo de la pseudo-inversa y veremos como nos clasifica")
+```{r regresslin}
+#funcion que calcula la regresion lineal con la pseudoinversa
+Regress_Lin = function(datos,label){
+  
+  datos = cbind(datos,c(rep(1,length(label))))
+  descom = svd(datos)
+  D = descom$d
+  V = descom$v
+  U = descom$u
+  
+  pseudo = (V %*% diag(1/D) %*% t(U))
+  w = pseudo %*% label
+  t(w)
+}
+```
+
+Ahora vamos a ver los pesos que nos a devuelto esta funcion y como clasifica los datos de test
+```{r llamadapesos}
+w = Regress_Lin(datosTr,etiquetasTr)
+print("la regresion lineal nos a dado los siguientes pesos, vamos a calcular su error en la muestra Ein")
+print(w)
+```
+
+Ya tenemos unos pesos, asi que vamos a definir una funcion que nos diga el error que hemos cometido en cada caso y como de bueno es nuestro modelo 
+
+```{r funciondeerror}
+calculoE = function(w,datos, label){
+  datos1 = cbind(datos,1)
+  E = sum(sign( (datos1%*%t(w)) ) != label)/length(label)
+  E  
+}
+```
+
+Ya podemos calcular el error cometido dentro y fuera de la muestra y vamos a ver en grafica como se comporta nuestro clasificador.
+```{r erroryplot}
+Ein = calculoE(w,datosTr,etiquetasTr)
+Eout = calculoE(w,datosTst,etiquetasTst)
+
+print("Hemos obtenido los siguientes errores")
+print("Ein:")
+print(Ein)
+print("Eout:")
+print(Eout)
+print("vamos a ver como nos ha clasificado los datos de test en la grafica con esos pesos")
+ab = pasoARecta(w)
+
+plot(datosTr,xlab=" intensidad",ylab="simetria", main="datos de train", col = sign(cbind(datosTr,1)%*%t(w))+2)
+abline(ab[2],ab[1])
+plot(datosTst,xlab=" intensidad",ylab="simetria", main="datos de test", col = sign(cbind(datosTst,1)%*%t(w))+2)
+abline(ab[2],ab[1])
+```
+
+
+Ahora vamos a implementar el Gradiente Descendente Stocastico. Como datos de entrada le pasaremos los datos y las etiquetas de entrenamiento, un vector de pesos iniciales w que en nuestro caso lo que haremos es pasarle el resultado de la pseudo-inversa para partir de un buen punto. Tambien le pasaremos parametros como la tasa de aprendizaje mu y los datos para la condiciones de parada. El algoritmo puede para por tres causas distintas. La primera por el limite de iteraciones. La segunda por que la funcion de error es menor a un umbral. Y por último si hemos llegado a una llanura y el punto anterior no difiere con el anterior.
+
+```{r GDS}
+
+##algoritmo del gradiente desccendiente estocastico
+GDS =function(datos,etiquetas,w,mu, maxit,umbral,umbraldiferencia = 0.01){
+  e=10000
+  i=0
+  anterior = 100000
+  diferencia = 100000
+  n=length(etiquetas)
+  datos1 = cbind(datos,1)
+
+  
+  while ( i<maxit  & e > umbral & diferencia < umbraldiferencia){
+    indices = sample(1:length(etiquetas),60)
+    
+    datosmio = datos1[indices,]
+    etiquetasmio = etiquetas[indices]
+
+    for(j in 1:length(w)){
+      
+      w[j] = w[j] - mu* 1/60 *sum(( -(etiquetasmio * datosmio[,j]) / (1 + exp(1)^(etiquetasmio * (datosmio) %*% t(w) )) ) )
+    }
+    i = i+1
+    e = calculoE(w,datos,etiquetas)
+    diferencia = abs(e-anterior)
+    anterior = e
+  }
+  w
+}
+```
+
+Vamos a comprobar como a funcionado nuestro GDS y si el error es bueno. Hemos usado un mu = 0.05 y los umbrales que vemos 
+
+```{r GDS error}
+w = GDS(datosTr,etiquetasTr,w, 0.05,10000,0.0001)
+
+print("En este caso hemos obtenidos los siguientes pesos w:")
+print("vamos a calcular el error tanto dentro como fuera en los datos de test")
+Ein = calculoE(w,datosTr,etiquetasTr)
+Eout = calculoE(w,datosTst,etiquetasTst)
+
+print("Hemos obtenido los siguientes errores")
+print("Ein:")
+print(Ein)
+print("Eout:")
+print(Eout)
+
+
+print("vamos a ver como nos ha clasificado los datos de test en la grafica con esos pesos")
+ab = pasoARecta(w)
+plot(datosTr,xlab=" intensidad",ylab="simetria", main="datos de train", col = sign(cbind(datosTr,1)%*%t(w))+2)
+abline(ab[2],ab[1])
+plot(datosTst,xlab=" intensidad",ylab="simetria", main="datos de test", col = sign(cbind(datosTst,1)%*%t(w))+2)
+abline(ab[2],ab[1])
+```
+
+###2.4 Experimento
+En este apartados vamos a ver como se trasforma el error cuando los datos son mas complejos. En este caso vamos a generar una nube de puntos aleatorios que usaremos de datos.
+
+```{r generax}
+set.seed(45)
+
+print("Ahora vamos a experimentar como evoluciona el error segun la complejidad del modelo usado, además de añadir ruido a las muestras")
+simula_unif = function (N=2,dims=2, rango = c(0,1)){
+  m = matrix(runif(N*dims, min=rango[1], max=rango[2]),
+             nrow = N, ncol=dims, byrow=T)
+  m
+}
+```
+
+Para etiquetarlos vamos a usar la funcion definada con 
+
+$f(x_1,x_2) = sign((x_1-0.2)^2 + (x_2)^2 -0.6$
+
+con lo que obtendremos un circulo de datos que pertenecen a una clase. Acemos uso de esto para obtener las etiquetas de nuestros datos
+```{r etiquetaf}
+#funcion para asignar etiquetas a cada dato
+f = function(x1,x2){
+  sign( (x1 - 0.2)^2 + (x2^2 -0.6))
+  
+}
+
+x = simula_unif(1000,2,c(-1,1))
+
+etiquetas = f(x[,1],x[,2])
+
+print("Hemos generado con simula unif una serie de datos y ademas los hemos calsificado con la funcion obteniendo")
+plot(x,col=etiquetas+2)
+```
+
+Ahora el ejercicio nos pide que le introzucamos un error del 10% a las muestras aleatoriamente
+
+```{r ruido}
+genera_ruido = function(etiquetas){
+  n = length(etiquetas)
+  inidices = sample(1:n,round(n*0.1))
+  etiquetas[inidices] = -etiquetas[inidices]
+  etiquetas
+}
+
+etiquetas = genera_ruido(etiquetas)
+
+print("Ahora tenemos la siguiente situacion")
+plot(x,col= etiquetas+2)
+```
+
+Como podemos imaginar la aproximacion para esto va a ser fatidica tanto con regresion como con GDS ya que no existe un modelo lineal que se pueda ajustar. Si ampliaramos la clase H añadiendo los valores de $x^2$ si podriamos encontrar un mejor ajuste. Pero vamos a ver como se comporta el modelo lineal con la pseudo-inversa
+```{r xpseudo}
+print("Vamos a aplicar en primer lugar la regresion lineal")
+w = Regress_Lin(x,etiquetas)
+datosmio = cbind(x,1)
+print("con la regresion lineal hemos conseguido un Ein")
+Ein = calculoE(w,x,etiquetas)
+print(Ein)
+print("Y la grafica clasificada con esto seria")
+plot(x,col = sign(datosmio%*%t(w))+2)
+ab = pasoARecta(w)
+abline(ab[2],ab[1])
+```
+
+Como podemos observar el modelo no es muy bueno y el error es muy elevado, superando el 40%
+Vamos a ver si GDS consigue mejorar un poco
+
+```{r xGDS}
+print("Vamos a usar ahora el GDS con mu = 0.05")
+w =  GDS(x, etiquetas,w,0.05,10000,0.001)
+print("con GDS hemos conseguido un Ein del GDS:")
+Ein = calculoE(w,x,etiquetas)
+print(Ein)
+print("Y la grafica clasificada con esto seria")
+plot(x,col = sign(datosmio%*%t(w))+2)
+ab = pasoARecta(w)
+abline(ab[2],ab[1])
+```
+
+Como podemos ver tampoco se consigue nada mejor. Vamos a repetir este experimento 1000 generando numeros aleatorios y haremos un promedio de error de todas las muestras para ver como se comporta
+```{r experimento}
+RsumaEin =0
+RsumaEout=0
+GsumaEin =0
+GsumaEout=0
+
+for(i in 1:1000){
+  
+  #generar los datos aleatorios
+  xtrain = simula_unif(1000,2,-1:1)
+  etiquetasTr = f(x[,1],x[,2])
+  xtest = simula_unif(1000,2,-1:1)
+  etiquetasTst = f(x[,1],x[,2])
+  
+  #le metemos ruido a las etiquetas
+  etiquetasTr = genera_ruido(etiquetasTr)
+  
+  
+   #usamos la regresion lineal
+  w = Regress_Lin(xtrain,etiquetasTr)
+  Ein = calculoE(w,xtrain,etiquetasTr)
+  Eout = calculoE(w,xtest,etiquetasTst)
+  
+  RsumaEin = (RsumaEin + Ein)
+  RsumaEout = (RsumaEout + Eout)
+  
+  #usamos el gradiente 
+  w =  GDS(x, etiquetas,w,0.01,1000,0.1)
+  
+  Ein = calculoE(w,xtrain,etiquetasTr)
+  Eout = calculoE(w,xtest,etiquetasTst)
+  
+  GsumaEin = (GsumaEin + Ein)
+  GsumaEout =(GsumaEout + Eout)
+}
+```
+Los resultados de la regresion lineal
+Ein medio
+```{r resul1}
+print(RsumaEin/1000)
+```
+Eout medio
+```{r resul2}
+print(RsumaEout/1000)
+```
+
+Los resultados de GDS
+Ein medio
+```{r resul3}
+print(GsumaEin/1000)
+```
+Eout medio
+```{r resul4}
+print(GsumaEout/1000)
+```
+
+Como podemos observar ni on la pseudo-inversa ni con GDS se a conseguido reducir el error llegando a obtener un error mayor al 40%. Esto quiere decir que el modelo lineal que estamos usando no puede ajustarse a la función subyacente en los datos. Para conseguir mejorar tendremos que ampliar la clase de funcion H como por ejemplo añadiendo los valores $x^2$.
+
+
+## Método de Newton  
+### Implementar el algoritmo de Método de Newton
+__* Parámetros__  
+- A raíz de los parámetros, pasamos la función a optimizar, con sus primera y segundas derivadas.  
+- Un vector de pesos inicial wini que corresponderá al punto inicial en el que comenzamos a aplicar Gradiente Descendente  
+- Número de iteraciones del algoritmo, _nitr_, por defecto establecido a 100000 iteraciones.
+- Una tasa de aprendizaje o _Learning Rate_ representada como el parámetro lr, por defecto inicializado a 0.1. 
+- El parámetro _umbral_ es un parámetro que indica a la función si debe parar cuando encuentre un valor por debajo del mismo en la función  
+- El parámetro _umbraldif_ nos sirve para detectar cuando el algortimo se encuentra en una llanura de la función, por lo que pararemos las iteraciones y finalizaremos el algoritmo.
+
+__* Algoritmo__
+- Con las iteraciones, realizamos las comprobaciones oportunas
+- Cuando el algoritmo finaliza, realizamos un control que imprime la razón de su finalización, aportándonos información relativa.
+
+__* Salida__
+- El algoritmo propocionará una lista con el vector de pesos _wini_, el número de _iteraciones_ que ha realizado y por último los _valores_ que ha tomado la función con las iteraciones del algoritmo
+Definimos las segundas derivadas de la función para el cálculo de la matriz _Hessiana_
+```{r}
+
+dxy <- function(x, y){
+  (8*pi^2*cos(2*pi*x)*cos(2*pi*y))
+}
+
+d2x <- function(x, y){
+  (2-8*pi^2*sin(2*pi*x)*sin(2*pi*y))
+}
+
+
+d2y <- function(x, y){
+  (4-8*pi^2*sin(2*pi*x)*sin(2*pi*y))
+}
+
+dyx <- function(x, y){
+  (8*pi^2*cos(2*pi*x)*cos(2*pi*y))
+}
+```  
+
+### Implementación del método de Newton  
+
+```{r}
+Metodo_Newton <- function(w, f, df, d2x, d2y, dxy, dyx, mu = 0.1, 
+                              umbral = 10^(-4), max_iter = 200) {
+
+  iter = 0
+  seguir = T
+  anterior = .Machine$integer.max
+  valores=list()
+  iteraciones=list()
+  
+  while(iter < max_iter & seguir){
+    # Calculamos la matriz Hessiana
+    m <- matrix(c(d2x(w[1],w[2]), dxy(w[1],w[2]), dyx(w[1],w[2]), d2y(w[1],w[2])), ncol = 2, nrow = 2, byrow = T)
+    
+    gradiente = df(w[1], w[2])
+    
+    w = w - mu*(solve(m)%*%gradiente)
+    
+    valores = c(valores, f(w[1], w[2]))
+    iteraciones = c(iteraciones, iter)
+    
+    iter = iter + 1
+    if(abs(f(w[1], w[2])-anterior) < umbral){
+      seguir = F
+    }
+    anterior = f(w[1], w[2])
+  }
+  
+  if (iter >= max_iter){
+    print ("Método de Newton ha llegado al limite de iteraciones")
+  }
+  else{
+    print ("Método de Newton ha parado por encontrarse en una llanura de la función")
+  }
+  
+  
+  valores=unlist(valores)
+  iteraciones=unlist(iteraciones)
+  
+  MN <- list(w, iteraciones, valores)
+  names(MN) <- c("w", "iteraciones", "valores")
+  
+  MN
+}
+```
+
+```{r}
+fun <- function(x, y){
+  ((x-2)^2 + 2*(y+2)^2 + 2*sin(2*pi*x)*sin(2*pi*y))
+}
+
+df <- function(x, y){
+  dx <- 4*pi*cos(2*pi*x)*sin(2*pi*y)+2*(x-2) 
+  dy <- 4*pi*sin(2*pi*x)*cos(2*pi*y)+4*(y+2)
+  
+  dxy <- c(dx,dy)
+  
+  dxy
+}
+
+par(mfrow=c(2,1))
+
+for(i in 1:nrow(ej1.3b)){
+  MNewton <- Metodo_Newton(w = c(ej1.3b[i,1], ej1.3b[i,2]), f = fun, df = df, d2x = d2x, d2y = d2y, dxy = 
+                       dxy, dyx = dyx, mu = 0.1, umbral = -10^(-5), max_iter = 50 )
+  
+  GDescendente <- GD(fun, df, wini = c(ej1.3b[i,1], ej1.3b[i,2]), lr = 0.1, nitr = 50, umbral = -5, umbraldif = -1)
+  
+  plot(MNewton$valores, type = "o", col = "blue", main = "Método de Newton", xlab = "Iteraciones", ylab = "f(x,y)")
+  plot(GDescendente$valores, type = "o", col = "red", main = "Gradiente Descendente", xlab = "Iteraciones", ylab = "f(x,y)")
+  
+  scan(n=1)
+}
+```
+
+```{r, echo = FALSE}
+par(mfrow=c(1,1))
+rm(list = ls())
+```
